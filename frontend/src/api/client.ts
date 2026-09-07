@@ -2,6 +2,8 @@ import type { PostgrestError } from '@supabase/supabase-js';
 import { supabase } from './supabase';
 import type {
   ActivityEntry,
+  Beneficiary,
+  BeneficiaryInput,
   CartReservation,
   AdminRole,
   AdminUser,
@@ -95,6 +97,7 @@ interface OrderRow {
   buyer_phone: string;
   recipient_name: string;
   recipient_phone: string;
+  recipient_id_card: string | null;
   recipient_province: Province;
   recipient_municipality: string;
   recipient_address: string;
@@ -115,6 +118,7 @@ const toOrder = (row: OrderRow): Order => ({
   buyerPhone: row.buyer_phone,
   recipientName: row.recipient_name,
   recipientPhone: row.recipient_phone,
+  recipientIdCard: row.recipient_id_card,
   recipientProvince: row.recipient_province,
   recipientProvinceName: row.provinces?.name ?? row.recipient_province,
   recipientMunicipality: row.recipient_municipality,
@@ -171,6 +175,38 @@ interface ProvinceRow {
   name: string;
   active: boolean;
 }
+
+interface BeneficiaryRow {
+  id: string;
+  full_name: string;
+  id_card: string;
+  phone: string;
+  municipality_id: string;
+  province: string;
+  municipality: string;
+  address: string;
+  provinces: { name: string } | null;
+}
+
+const toBeneficiary = (row: BeneficiaryRow): Beneficiary => ({
+  id: row.id,
+  fullName: row.full_name,
+  idCard: row.id_card,
+  phone: row.phone,
+  municipalityId: row.municipality_id,
+  province: row.province,
+  provinceName: row.provinces?.name ?? row.province,
+  municipality: row.municipality,
+  address: row.address,
+});
+
+const toBeneficiaryRow = (input: BeneficiaryInput) => ({
+  full_name: input.fullName.trim(),
+  id_card: input.idCard.replace(/\s/g, ''),
+  phone: input.phone.trim(),
+  municipality_id: input.municipalityId,
+  address: input.address.trim(),
+});
 
 interface MunicipalityRow {
   id: string;
@@ -283,6 +319,14 @@ async function invokeManageAdmins(body: Record<string, unknown>): Promise<void> 
   throw new Error(error.message);
 }
 
+/** El índice único (user_id, id_card) devuelve un mensaje de Postgres ilegible. */
+function failBeneficiary(error: PostgrestError): never {
+  if (error.code === '23505') {
+    throw new Error('Ya tienes un beneficiario con ese carné de identidad.');
+  }
+  fail(error);
+}
+
 const BUSINESS_LOGOS_BUCKET = 'business-logos';
 
 export const api = {
@@ -374,6 +418,40 @@ export const api = {
     const products = ((productRows ?? []) as ProductRow[]).map(toProduct);
 
     return { business: toBusiness(data as unknown as BusinessRow, products.length), products };
+  },
+
+  /** Los beneficiarios del comprador que tiene la sesión iniciada. */
+  async listBeneficiaries(): Promise<Beneficiary[]> {
+    const { data, error } = await supabase
+      .from('beneficiaries')
+      .select('id, full_name, id_card, phone, municipality_id, province, municipality, address, provinces(name)')
+      .order('full_name');
+
+    if (error) fail(error);
+    return ((data ?? []) as unknown as BeneficiaryRow[]).map(toBeneficiary);
+  },
+
+  /** Crea o actualiza un beneficiario; `user_id` lo pone la policy, no el cliente. */
+  async saveBeneficiary(input: BeneficiaryInput, id?: string): Promise<void> {
+    if (id) {
+      const { error } = await supabase.from('beneficiaries').update(toBeneficiaryRow(input)).eq('id', id);
+      if (error) failBeneficiary(error);
+      return;
+    }
+
+    const { data: session } = await supabase.auth.getUser();
+    const userId = session.user?.id;
+    if (!userId) throw new Error('Inicia sesión para guardar beneficiarios.');
+
+    const { error } = await supabase
+      .from('beneficiaries')
+      .insert({ ...toBeneficiaryRow(input), user_id: userId });
+    if (error) failBeneficiary(error);
+  },
+
+  async deleteBeneficiary(id: string): Promise<void> {
+    const { error } = await supabase.from('beneficiaries').delete().eq('id', id);
+    if (error) fail(error);
   },
 
   async createOrder(input: CreateOrderInput): Promise<{ id: string }> {

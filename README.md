@@ -35,9 +35,10 @@ supabase/seed.sql    catálogo de prueba
 | `municipalities` | province_code, name, active (único por provincia)                                                        |
 | `categories`  | name (único), description, active — tipo de servicio del negocio                                            |
 | `products`    | business_id, name, price_usd, photo_url, available                                                          |
-| `orders`      | buyer_*, recipient_* (nombre, teléfono, provincia, municipio, dirección), business_id, status, total_usd, user_id |
+| `orders`      | buyer_*, recipient_* (nombre, teléfono, carné, provincia, municipio, dirección), business_id, status, total_usd, user_id |
 | `order_items` | order_id, product_id, product_name, quantity, unit_price                                                    |
 | `admins`      | user_id (→ `auth.users`), email, role (`owner` \| `staff`)                                                   |
+| `beneficiaries` | user_id (→ `auth.users`), full_name, id_card, phone, municipality_id/province/municipality, address       |
 
 Provincias, municipios y categorías se gestionan desde el panel (`/admin/lugares`,
 `/admin/categorias`). Guardar un negocio y sus categorías es una sola transacción, `save_business()`
@@ -55,6 +56,13 @@ deja al comprador leer solo esas filas. Los pedidos hechos sin sesión quedan co
 se siguen consultando únicamente con su id; **no se reclaman después por email**, porque el email
 del pedido no está verificado. Una cuenta de comprador no da ningún acceso al panel: eso lo decide
 la tabla `admins`.
+
+Un comprador con cuenta guarda en `/beneficiarios` a las personas que recogen sus pedidos en Cuba
+(nombre y apellidos, carné de identidad, teléfono, municipio y dirección). La libreta es privada:
+la única policy de `beneficiaries` es `user_id = auth.uid()`, y el panel no la lee. Al confirmar un
+pedido se elige un beneficiario y sus datos rellenan el destinatario; el pedido guarda una **copia**
+(incluido `recipient_id_card`), igual que hace con el nombre del producto, así que editar o borrar
+un beneficiario no reescribe pedidos ya hechos. Por eso `orders` no tiene FK al beneficiario.
 
 El comprador nunca escribe en `orders`: no hay policy de insert, ni para `anon` ni para
 `authenticated`. El checkout llama a `create_order(payload jsonb)`, que:

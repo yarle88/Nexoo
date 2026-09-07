@@ -150,6 +150,8 @@ export function AccountPage() {
           <hr />
           <p className="field-hint">
             <Link to="/mis-pedidos">Ver historial de compras</Link>
+            {' · '}
+            <Link to="/beneficiarios">Mis beneficiarios</Link>
             {admin && (
               <>
                 {' · '}

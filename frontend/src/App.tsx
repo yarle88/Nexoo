@@ -3,6 +3,7 @@ import { AuthProvider } from './auth/AuthContext';
 import { CartProvider } from './cart/CartContext';
 import { Layout } from './components/Layout';
 import { AccountPage } from './pages/AccountPage';
+import { BeneficiariesPage } from './pages/BeneficiariesPage';
 import { BusinessPage } from './pages/BusinessPage';
 import { CartPage } from './pages/CartPage';
 import { CatalogPage } from './pages/CatalogPage';
@@ -38,6 +39,7 @@ export function App() {
           <Route path="registro" element={<RegisterPage />} />
           <Route path="mis-pedidos" element={<MyOrdersPage />} />
           <Route path="cuenta" element={<AccountPage />} />
+          <Route path="beneficiarios" element={<BeneficiariesPage />} />
 
           <Route path="admin/login" element={<AdminLoginPage />} />
           <Route path="admin" element={<AdminLayout />}>

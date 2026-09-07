@@ -101,6 +101,12 @@ export function AdminOrdersPage() {
                     <span className="meta">
                       {order.recipientPhone}
                       <br />
+                      {order.recipientIdCard && (
+                        <>
+                          CI {order.recipientIdCard}
+                          <br />
+                        </>
+                      )}
                       {order.recipientProvinceName}, {order.recipientMunicipality}
                       <br />
                       {order.recipientAddress}

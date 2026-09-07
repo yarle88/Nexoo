@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
-import type { Municipality, Province, ProvinceRef } from '../api/types';
+import type { Beneficiary, Municipality, Province, ProvinceRef } from '../api/types';
 import { useAuth } from '../auth/AuthContext';
 import { useCart } from '../cart/CartContext';
 import { formatUsd } from '../components/Money';
@@ -12,6 +12,7 @@ interface FormState {
   buyerPhone: string;
   recipientName: string;
   recipientPhone: string;
+  recipientIdCard: string;
   recipientProvince: Province;
   recipientMunicipality: string;
   recipientAddress: string;
@@ -24,6 +25,7 @@ const initialForm: FormState = {
   buyerPhone: '',
   recipientName: '',
   recipientPhone: '',
+  recipientIdCard: '',
   recipientProvince: '',
   recipientMunicipality: '',
   recipientAddress: '',
@@ -45,6 +47,29 @@ export function CheckoutPage() {
   const [error, setError] = useState<string | null>(null);
   const [provinces, setProvinces] = useState<ProvinceRef[]>([]);
   const [municipalities, setMunicipalities] = useState<Municipality[]>([]);
+  const [beneficiaries, setBeneficiaries] = useState<Beneficiary[]>([]);
+  const [beneficiaryId, setBeneficiaryId] = useState('');
+
+  useEffect(() => {
+    if (!user) {
+      setBeneficiaries([]);
+      return;
+    }
+
+    let cancelled = false;
+    api
+      .listBeneficiaries()
+      .then((data) => {
+        if (!cancelled) setBeneficiaries(data);
+      })
+      .catch((e: Error) => {
+        if (!cancelled) setError(e.message);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     api
@@ -106,6 +131,23 @@ export function CheckoutPage() {
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
 
+  /** Rellena los datos del destinatario con los del beneficiario elegido. */
+  const selectBeneficiary = (id: string) => {
+    setBeneficiaryId(id);
+    const beneficiary = beneficiaries.find((b) => b.id === id);
+    if (!beneficiary) return;
+
+    setForm((current) => ({
+      ...current,
+      recipientName: beneficiary.fullName,
+      recipientPhone: beneficiary.phone,
+      recipientIdCard: beneficiary.idCard,
+      recipientProvince: beneficiary.province,
+      recipientMunicipality: beneficiary.municipality,
+      recipientAddress: beneficiary.address,
+    }));
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSubmitting(true);
@@ -114,6 +156,7 @@ export function CheckoutPage() {
     try {
       const order = await api.createOrder({
         ...form,
+        recipientIdCard: form.recipientIdCard || undefined,
         notes: form.notes.trim() || undefined,
         items: cart.lines.map((l) => ({ productId: l.product.id, quantity: l.quantity })),
         cartToken: cart.cartToken,
@@ -195,6 +238,26 @@ export function CheckoutPage() {
 
           <div className="card">
             <h3>Destinatario en Cuba</h3>
+            {user && beneficiaries.length > 0 && (
+              <div className="field">
+                <label htmlFor="beneficiary">Elegir un beneficiario guardado</label>
+                <select
+                  id="beneficiary"
+                  value={beneficiaryId}
+                  onChange={(e) => selectBeneficiary(e.target.value)}
+                >
+                  <option value="">Escribir otros datos…</option>
+                  {beneficiaries.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.fullName} — {b.municipality}
+                    </option>
+                  ))}
+                </select>
+                <p className="field-hint">
+                  Se gestionan en <Link to="/beneficiarios">Mis beneficiarios</Link>.
+                </p>
+              </div>
+            )}
             <div className="field-row">
               <div className="field">
                 <label htmlFor="recipientName">Nombre completo</label>
@@ -216,6 +279,19 @@ export function CheckoutPage() {
                   onChange={(e) => set('recipientPhone', e.target.value)}
                 />
               </div>
+            </div>
+            <div className="field">
+              <label htmlFor="recipientIdCard">Carné de identidad de quien recoge</label>
+              <input
+                id="recipientIdCard"
+                required
+                inputMode="numeric"
+                pattern="[0-9]{11}"
+                title="11 dígitos"
+                value={form.recipientIdCard}
+                onChange={(e) => set('recipientIdCard', e.target.value.replace(/\D/g, '').slice(0, 11))}
+              />
+              <p className="field-hint">11 dígitos; el negocio lo pide al entregar el pedido.</p>
             </div>
             <div className="field-row">
               <div className="field">

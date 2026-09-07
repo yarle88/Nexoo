@@ -97,6 +97,12 @@ export function OrderConfirmationPage() {
         <p>
           {order.recipientName} · {order.recipientPhone}
           <br />
+          {order.recipientIdCard && (
+            <>
+              CI {order.recipientIdCard}
+              <br />
+            </>
+          )}
           {order.recipientProvinceName}, {order.recipientMunicipality}
           <br />
           {order.recipientAddress}

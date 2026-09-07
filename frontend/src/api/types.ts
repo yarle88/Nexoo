@@ -113,6 +113,8 @@ export interface Order {
   buyerPhone: string;
   recipientName: string;
   recipientPhone: string;
+  /** Carné del destinatario; null en pedidos anteriores a los beneficiarios. */
+  recipientIdCard: string | null;
   recipientProvince: Province;
   recipientProvinceName: string;
   recipientMunicipality: string;
@@ -145,6 +147,7 @@ export interface CreateOrderInput {
   buyerPhone: string;
   recipientName: string;
   recipientPhone: string;
+  recipientIdCard?: string;
   recipientProvince: Province;
   recipientMunicipality: string;
   recipientAddress: string;
@@ -254,4 +257,27 @@ export interface UserProfile {
   phone: string;
   /** Recibir por email las actualizaciones de los pedidos. */
   orderEmails: boolean;
+}
+
+/** Persona que recoge el pedido en Cuba; cada comprador guarda las suyas. */
+export interface Beneficiary {
+  id: string;
+  fullName: string;
+  /** Carné de identidad cubano: 11 dígitos. */
+  idCard: string;
+  phone: string;
+  municipalityId: string;
+  /** La provincia y el nombre del municipio se derivan del municipio en la base de datos. */
+  province: Province;
+  provinceName: string;
+  municipality: string;
+  address: string;
+}
+
+export interface BeneficiaryInput {
+  fullName: string;
+  idCard: string;
+  phone: string;
+  municipalityId: string;
+  address: string;
 }

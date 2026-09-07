@@ -2,7 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
 import { useAuth } from '../auth/AuthContext';
-import { ChevronDownIcon, LogoutIcon, ReceiptIcon, SettingsIcon, ShieldIcon, UserIcon } from './Icon';
+import {
+  ChevronDownIcon,
+  LogoutIcon,
+  ReceiptIcon,
+  SettingsIcon,
+  ShieldIcon,
+  UserIcon,
+  UsersIcon,
+} from './Icon';
 
 /** Nombre guardado en el perfil; si falta, la parte local del email. */
 function displayName(user: { email?: string; user_metadata?: { full_name?: unknown } }): string {
@@ -73,6 +81,10 @@ export function UserMenu() {
           <Link to="/cuenta" role="menuitem" onClick={() => setOpen(false)}>
             <UserIcon size={16} />
             Mi perfil
+          </Link>
+          <Link to="/beneficiarios" role="menuitem" onClick={() => setOpen(false)}>
+            <UsersIcon size={16} />
+            Mis beneficiarios
           </Link>
           <Link to="/cuenta#preferencias" role="menuitem" onClick={() => setOpen(false)}>
             <SettingsIcon size={16} />
