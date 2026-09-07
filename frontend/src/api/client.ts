@@ -284,6 +284,24 @@ async function invokeManageAdmins(body: Record<string, unknown>): Promise<void> 
 }
 
 const BUSINESS_LOGOS_BUCKET = 'business-logos';
+const PRODUCT_PHOTOS_BUCKET = 'product-photos';
+
+/**
+ * Sube la imagen a un bucket público y devuelve su URL.
+ * El nombre incluye un aleatorio para no pisar imágenes ya subidas.
+ */
+async function uploadPublicImage(bucket: string, file: File): Promise<string> {
+  const extension = file.name.split('.').pop()?.toLowerCase() ?? 'png';
+  const path = `${crypto.randomUUID()}.${extension}`;
+
+  const { error } = await supabase.storage
+    .from(bucket)
+    .upload(path, file, { contentType: file.type, upsert: false });
+  if (error) throw new Error(error.message);
+
+  const { data } = supabase.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
 
 export const api = {
   async listProvinces(): Promise<ProvinceRef[]> {
@@ -540,21 +558,14 @@ export const api = {
       if (error) fail(error);
     },
 
-    /**
-     * Sube el logo al bucket público `business-logos` y devuelve su URL.
-     * El nombre incluye un aleatorio para no pisar logos de otros negocios.
-     */
+    /** Sube el logo al bucket público `business-logos` y devuelve su URL. */
     async uploadBusinessLogo(file: File): Promise<string> {
-      const extension = file.name.split('.').pop()?.toLowerCase() ?? 'png';
-      const path = `${crypto.randomUUID()}.${extension}`;
+      return uploadPublicImage(BUSINESS_LOGOS_BUCKET, file);
+    },
 
-      const { error } = await supabase.storage
-        .from(BUSINESS_LOGOS_BUCKET)
-        .upload(path, file, { contentType: file.type, upsert: false });
-      if (error) throw new Error(error.message);
-
-      const { data } = supabase.storage.from(BUSINESS_LOGOS_BUCKET).getPublicUrl(path);
-      return data.publicUrl;
+    /** Sube la foto al bucket público `product-photos` y devuelve su URL. */
+    async uploadProductPhoto(file: File): Promise<string> {
+      return uploadPublicImage(PRODUCT_PHOTOS_BUCKET, file);
     },
 
     async createBusiness(input: BusinessInput): Promise<void> {

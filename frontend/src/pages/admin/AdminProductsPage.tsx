@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import { LOW_STOCK_THRESHOLD, type Business, type Product, type ProductInput } from '../../api/types';
 import { useAuth } from '../../auth/AuthContext';
@@ -6,9 +6,11 @@ import {
   BoxIcon,
   CheckIcon,
   CloseIcon,
+  ImageIcon,
   PencilIcon,
   PlusIcon,
   TrashIcon,
+  UploadIcon,
 } from '../../components/Icon';
 import { Modal } from '../../components/Modal';
 import { formatUsd } from '../../components/Money';
@@ -36,6 +38,8 @@ export function AdminProductsPage() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     api.admin
@@ -71,6 +75,21 @@ export function AdminProductsPage() {
 
   const set = <K extends keyof ProductInput>(key: K, value: ProductInput[K]) =>
     setForm((current) => ({ ...current, [key]: value }));
+
+  const uploadPhoto = async (file: File | undefined) => {
+    if (!file) return;
+    setUploadingPhoto(true);
+    try {
+      set('photoUrl', await api.admin.uploadProductPhoto(file));
+      setError(null);
+    } catch (e) {
+      setError(`No se pudo subir la foto: ${(e as Error).message}`);
+    } finally {
+      setUploadingPhoto(false);
+      // Permite volver a elegir el mismo archivo tras un error.
+      if (photoInputRef.current) photoInputRef.current.value = '';
+    }
+  };
 
   const closeForm = () => {
     setForm(emptyForm(selectedBusinessId));
@@ -281,15 +300,55 @@ export function AdminProductsPage() {
               />
             </div>
             <div className="field">
-              <label htmlFor="photoUrl">URL de la foto</label>
-              <input
-                id="photoUrl"
-                type="url"
-                disabled={!canManageCatalog}
-                maxLength={1000}
-                value={form.photoUrl ?? ''}
-                onChange={(e) => set('photoUrl', e.target.value)}
-              />
+              <span className="field-label label-icon">
+                <ImageIcon /> Foto
+              </span>
+              <div className="logo-upload">
+                <input
+                  id="photoFile"
+                  ref={photoInputRef}
+                  type="file"
+                  className="visually-hidden"
+                  accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                  disabled={!canManageCatalog}
+                  onChange={(e) => void uploadPhoto(e.target.files?.[0])}
+                />
+                <label htmlFor="photoFile" className="logo-dropzone">
+                  {form.photoUrl?.trim() ? (
+                    <img
+                      className="business-logo"
+                      src={form.photoUrl}
+                      alt="Vista previa de la foto"
+                    />
+                  ) : (
+                    <span className="logo-upload-placeholder" aria-hidden="true">
+                      <ImageIcon size={22} />
+                    </span>
+                  )}
+                  <span className="logo-dropzone-text">
+                    <span className="logo-dropzone-action">
+                      <UploadIcon size={15} />
+                      {uploadingPhoto
+                        ? 'Subiendo…'
+                        : form.photoUrl?.trim()
+                          ? 'Cambiar imagen'
+                          : 'Subir imagen'}
+                    </span>
+                    <span className="field-hint">PNG, JPG, WEBP o SVG. Máximo 2 MB.</span>
+                  </span>
+                </label>
+                {canManageCatalog && form.photoUrl?.trim() && (
+                  <button
+                    type="button"
+                    className="icon-button danger"
+                    title="Quitar foto"
+                    aria-label="Quitar foto"
+                    onClick={() => set('photoUrl', '')}
+                  >
+                    <TrashIcon size={15} />
+                  </button>
+                )}
+              </div>
             </div>
             <div className="field">
               <label htmlFor="productDescription">Descripción</label>
